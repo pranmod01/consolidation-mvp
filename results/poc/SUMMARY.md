@@ -15,9 +15,9 @@ Bio-inspired consolidation (Pattern Separation + Temporal Spacing) improves cont
 |----------|--------------|----------------|-------------|
 | Baseline | 83.9% | 15.9% | - |
 | +PS (Pattern Separation) | 88.2% | 11.7% | +4.4% |
-| +TS (Temporal Spacing) | 86.4% | 13.4% | +2.5% |
-| +PS+TS (Combined) | 84.8% | 14.9% | +1.0% |
+| +TS (Temporal Spacing) | 85.3% | 14.6% | +1.4% |
+| +PS+TS (Combined) | 85.2% | 14.6% | +1.4% |
 
 ## Conclusion
 
-Combined PS+TS improves accuracy by **+1.0%** over baseline.
+Combined PS+TS improves accuracy by **+1.4%** over baseline.
