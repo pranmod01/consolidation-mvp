@@ -1,0 +1,68 @@
+{
+  "config": {
+    "name": "ewc_diversity_buf1000",
+    "seed": 42,
+    "dataset": "split_mnist",
+    "num_tasks": 5,
+    "data_root": "./data",
+    "model_type": "cnn",
+    "feature_dim": 128,
+    "num_classes": 10,
+    "epochs_per_task": 3,
+    "batch_size": 64,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "device": "auto",
+    "method": "ewc",
+    "ewc_lambda": 400.0,
+    "ewc_online": false,
+    "ewc_gamma": 0.95,
+    "meta_inner_lr": 0.01,
+    "meta_inner_steps": 5,
+    "meta_lr": 0.001,
+    "buffer_size": 1000,
+    "samples_per_task": null,
+    "replay_batch_size": 32,
+    "replay_freq": 1,
+    "sampling_strategy": "diversity",
+    "update_features_freq": 50,
+    "ps_method": "farthest_point",
+    "ps_n_clusters": 10,
+    "ps_temperature": 1.0,
+    "ts_method": "age_weighted",
+    "ts_age_exponent": 1.0,
+    "ts_forgetting_weight": 0.5,
+    "diversity_weight": 0.5,
+    "temporal_weight": 0.5,
+    "results_dir": "./results",
+    "save_checkpoints": false
+  },
+  "metrics": {
+    "average_accuracy": 94.28325151113134,
+    "learning_accuracy": 99.73813482845716,
+    "forgetting": {
+      "1": 6.855791962174948,
+      "2": 9.598432908912827,
+      "3": 7.043756670224127,
+      "4": 3.7764350453172284,
+      "5": 0.0
+    },
+    "average_forgetting": 5.454883317325826,
+    "forward_transfer": {
+      "1": 50.0,
+      "2": 49.85308521057786,
+      "3": 49.94663820704376,
+      "4": 49.748237663645526,
+      "5": 49.142713061018654
+    },
+    "average_forward_transfer": 49.738134828457156,
+    "backward_transfer": {
+      "1": -6.855791962174948,
+      "2": -9.598432908912827,
+      "3": -7.043756670224127,
+      "4": -3.7764350453172284,
+      "5": 0.0
+    },
+    "average_backward_transfer": -5.454883317325826
+  }
+}

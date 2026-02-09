@@ -1,0 +1,68 @@
+{
+  "config": {
+    "name": "ewc_diversity_buf200",
+    "seed": 42,
+    "dataset": "split_mnist",
+    "num_tasks": 5,
+    "data_root": "./data",
+    "model_type": "cnn",
+    "feature_dim": 128,
+    "num_classes": 10,
+    "epochs_per_task": 3,
+    "batch_size": 64,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "device": "auto",
+    "method": "ewc",
+    "ewc_lambda": 400.0,
+    "ewc_online": false,
+    "ewc_gamma": 0.95,
+    "meta_inner_lr": 0.01,
+    "meta_inner_steps": 5,
+    "meta_lr": 0.001,
+    "buffer_size": 200,
+    "samples_per_task": null,
+    "replay_batch_size": 32,
+    "replay_freq": 1,
+    "sampling_strategy": "diversity",
+    "update_features_freq": 50,
+    "ps_method": "farthest_point",
+    "ps_n_clusters": 10,
+    "ps_temperature": 1.0,
+    "ts_method": "age_weighted",
+    "ts_age_exponent": 1.0,
+    "ts_forgetting_weight": 0.5,
+    "diversity_weight": 0.5,
+    "temporal_weight": 0.5,
+    "results_dir": "./results",
+    "save_checkpoints": false
+  },
+  "metrics": {
+    "average_accuracy": 88.0915635636565,
+    "learning_accuracy": 99.9288437397248,
+    "forgetting": {
+      "1": 7.37588652482269,
+      "2": 16.69931439764936,
+      "3": 20.81109925293491,
+      "4": 14.300100704934536,
+      "5": 0.0
+    },
+    "average_forgetting": 11.8372801760683,
+    "forward_transfer": {
+      "1": 50.0,
+      "2": 50.0,
+      "3": 49.94663820704376,
+      "4": 49.899295065458205,
+      "5": 49.798285426122035
+    },
+    "average_forward_transfer": 49.9288437397248,
+    "backward_transfer": {
+      "1": -7.37588652482269,
+      "2": -16.69931439764936,
+      "3": -20.81109925293491,
+      "4": -14.300100704934536,
+      "5": 0.0
+    },
+    "average_backward_transfer": -11.8372801760683
+  }
+}

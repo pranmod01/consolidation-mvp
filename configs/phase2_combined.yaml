@@ -1,0 +1,48 @@
+# Phase 2 Configuration
+# Combined mechanisms: Pattern Separation + Temporal Spacing
+
+name: vanilla_replay_combined
+seed: 42
+
+# Dataset
+dataset: split_cifar10
+num_tasks: 5
+data_root: ./data
+
+# Model
+model_type: resnet
+feature_dim: 512
+num_classes: 10
+
+# Training
+epochs_per_task: 10
+batch_size: 64
+lr: 0.001
+device: auto
+
+# Base method
+method: vanilla_replay
+
+# Replay buffer
+buffer_size: 500
+replay_batch_size: 32
+replay_freq: 1
+
+# Consolidation: Combined PS + TS
+sampling_strategy: combined
+update_features_freq: 50
+
+# Pattern Separation config
+ps_method: farthest_point
+ps_temperature: 1.0
+
+# Temporal Spacing config
+ts_method: age_weighted
+ts_age_exponent: 1.0
+
+# Combined weights
+diversity_weight: 0.5
+temporal_weight: 0.5
+
+# Output
+results_dir: ./results

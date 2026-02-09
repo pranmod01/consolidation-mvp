@@ -1,0 +1,68 @@
+{
+  "config": {
+    "name": "vanilla_replay_temporal",
+    "seed": 42,
+    "dataset": "split_cifar10",
+    "num_tasks": 5,
+    "data_root": "./data",
+    "model_type": "cnn",
+    "feature_dim": 128,
+    "num_classes": 10,
+    "epochs_per_task": 5,
+    "batch_size": 64,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "device": "auto",
+    "method": "vanilla_replay",
+    "ewc_lambda": 400.0,
+    "ewc_online": false,
+    "ewc_gamma": 0.95,
+    "meta_inner_lr": 0.01,
+    "meta_inner_steps": 5,
+    "meta_lr": 0.001,
+    "buffer_size": 500,
+    "samples_per_task": null,
+    "replay_batch_size": 32,
+    "replay_freq": 1,
+    "sampling_strategy": "temporal",
+    "update_features_freq": 0,
+    "ps_method": "farthest_point",
+    "ps_n_clusters": 10,
+    "ps_temperature": 1.0,
+    "ts_method": "age_weighted",
+    "ts_age_exponent": 1.0,
+    "ts_forgetting_weight": 0.5,
+    "diversity_weight": 0.5,
+    "temporal_weight": 0.5,
+    "results_dir": "./results",
+    "save_checkpoints": false
+  },
+  "metrics": {
+    "average_accuracy": 41.56999999999999,
+    "learning_accuracy": 45.510000000000005,
+    "forgetting": {
+      "1": 53.45,
+      "2": 17.85,
+      "3": 9.299999999999997,
+      "4": 0.0,
+      "5": 0.0
+    },
+    "average_forgetting": 16.12,
+    "forward_transfer": {
+      "1": 44.5,
+      "2": -18.5,
+      "3": -39.6,
+      "4": -3.549999999999997,
+      "5": -5.299999999999997
+    },
+    "average_forward_transfer": -4.489999999999999,
+    "backward_transfer": {
+      "1": -53.45,
+      "2": -10.850000000000001,
+      "3": 24.6,
+      "4": 20.0,
+      "5": 0.0
+    },
+    "average_backward_transfer": -3.940000000000002
+  }
+}
