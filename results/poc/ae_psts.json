@@ -1,0 +1,71 @@
+{
+  "config": {
+    "name": "poc_ae_psts",
+    "seed": 42,
+    "dataset": "split_mnist",
+    "num_tasks": 5,
+    "data_root": "./data",
+    "model_type": "cnn",
+    "feature_dim": 128,
+    "num_classes": 10,
+    "epochs_per_task": 2,
+    "batch_size": 64,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "device": "auto",
+    "method": "autoencoder",
+    "ewc_lambda": 400.0,
+    "ewc_online": false,
+    "ewc_gamma": 0.95,
+    "meta_inner_lr": 0.01,
+    "meta_inner_steps": 5,
+    "meta_lr": 0.001,
+    "ttt_lr": 0.001,
+    "ttt_steps": 1,
+    "rotation_weight": 1.0,
+    "buffer_size": 200,
+    "samples_per_task": null,
+    "replay_batch_size": 32,
+    "replay_freq": 1,
+    "sampling_strategy": "combined",
+    "update_features_freq": 30,
+    "ps_method": "farthest_point",
+    "ps_n_clusters": 10,
+    "ps_temperature": 1.0,
+    "ts_method": "age_weighted",
+    "ts_age_exponent": 1.0,
+    "ts_forgetting_weight": 0.5,
+    "diversity_weight": 0.5,
+    "temporal_weight": 0.5,
+    "results_dir": "./results",
+    "save_checkpoints": false
+  },
+  "metrics": {
+    "average_accuracy": 81.64381827868849,
+    "learning_accuracy": 99.61839167134761,
+    "forgetting": {
+      "1": 16.50118203309694,
+      "2": 29.431929480901076,
+      "3": 26.467449306296686,
+      "4": 17.472306143001006,
+      "5": 0.0
+    },
+    "average_forgetting": 17.974573392659142,
+    "forward_transfer": {
+      "1": 49.90543735224587,
+      "2": 49.75514201762978,
+      "3": 49.89327641408751,
+      "4": 49.64753272910373,
+      "5": 48.8905698436712
+    },
+    "average_forward_transfer": 49.61839167134762,
+    "backward_transfer": {
+      "1": -16.50118203309694,
+      "2": -29.431929480901076,
+      "3": -26.467449306296686,
+      "4": -17.472306143001006,
+      "5": 0.0
+    },
+    "average_backward_transfer": -17.974573392659142
+  }
+}
