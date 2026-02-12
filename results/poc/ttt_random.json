@@ -1,6 +1,6 @@
 {
   "config": {
-    "name": "poc_temporal",
+    "name": "poc_ttt_random",
     "seed": 42,
     "dataset": "split_mnist",
     "num_tasks": 5,
@@ -13,18 +13,21 @@
     "lr": 0.001,
     "weight_decay": 0.0,
     "device": "auto",
-    "method": "vanilla_replay",
+    "method": "ttt",
     "ewc_lambda": 400.0,
     "ewc_online": false,
     "ewc_gamma": 0.95,
     "meta_inner_lr": 0.01,
     "meta_inner_steps": 5,
     "meta_lr": 0.001,
+    "ttt_lr": 0.001,
+    "ttt_steps": 1,
+    "rotation_weight": 1.0,
     "buffer_size": 200,
     "samples_per_task": null,
     "replay_batch_size": 32,
     "replay_freq": 1,
-    "sampling_strategy": "temporal",
+    "sampling_strategy": "random",
     "update_features_freq": 0,
     "ps_method": "farthest_point",
     "ps_n_clusters": 10,
@@ -38,31 +41,31 @@
     "save_checkpoints": false
   },
   "metrics": {
-    "average_accuracy": 84.73281185884123,
-    "learning_accuracy": 99.76720351950443,
+    "average_accuracy": 87.9818071068152,
+    "learning_accuracy": 99.76963763943297,
     "forgetting": {
-      "1": 12.245862884160758,
-      "2": 24.09402546523016,
-      "3": 21.611526147278553,
-      "4": 17.220543806646518,
+      "1": 13.333333333333329,
+      "2": 17.335945151811956,
+      "3": 18.24973319103522,
+      "4": 10.020140986908359,
       "5": 0.0
     },
-    "average_forgetting": 15.034391660663198,
+    "average_forgetting": 11.787830532617772,
     "forward_transfer": {
       "1": 50.0,
-      "2": 49.85308521057786,
-      "3": 49.83991462113127,
-      "4": 49.79859013091641,
-      "5": 49.34442763489662
+      "2": 49.75514201762978,
+      "3": 50.0,
+      "4": 49.49647532729104,
+      "5": 49.59657085224407
     },
-    "average_forward_transfer": 49.767203519504434,
+    "average_forward_transfer": 49.76963763943298,
     "backward_transfer": {
-      "1": -12.245862884160758,
-      "2": -24.09402546523016,
-      "3": -21.611526147278553,
-      "4": -17.220543806646518,
+      "1": -13.333333333333329,
+      "2": -17.335945151811956,
+      "3": -18.24973319103522,
+      "4": -10.020140986908359,
       "5": 0.0
     },
-    "average_backward_transfer": -15.034391660663198
+    "average_backward_transfer": -11.787830532617772
   }
 }

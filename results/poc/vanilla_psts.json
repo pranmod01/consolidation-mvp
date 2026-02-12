@@ -1,6 +1,6 @@
 {
   "config": {
-    "name": "poc_temporal",
+    "name": "poc_vanilla_psts",
     "seed": 42,
     "dataset": "split_mnist",
     "num_tasks": 5,
@@ -20,12 +20,15 @@
     "meta_inner_lr": 0.01,
     "meta_inner_steps": 5,
     "meta_lr": 0.001,
+    "ttt_lr": 0.001,
+    "ttt_steps": 1,
+    "rotation_weight": 1.0,
     "buffer_size": 200,
     "samples_per_task": null,
     "replay_batch_size": 32,
     "replay_freq": 1,
-    "sampling_strategy": "temporal",
-    "update_features_freq": 0,
+    "sampling_strategy": "combined",
+    "update_features_freq": 30,
     "ps_method": "farthest_point",
     "ps_n_clusters": 10,
     "ps_temperature": 1.0,
@@ -38,31 +41,31 @@
     "save_checkpoints": false
   },
   "metrics": {
-    "average_accuracy": 84.73281185884123,
-    "learning_accuracy": 99.76720351950443,
+    "average_accuracy": 85.96657130385843,
+    "learning_accuracy": 99.74673684161837,
     "forgetting": {
-      "1": 12.245862884160758,
-      "2": 24.09402546523016,
-      "3": 21.611526147278553,
-      "4": 17.220543806646518,
+      "1": 17.966903073286048,
+      "2": 19.392752203721855,
+      "3": 16.43543223052295,
+      "4": 15.105740181268871,
       "5": 0.0
     },
-    "average_forgetting": 15.034391660663198,
+    "average_forgetting": 13.780165537759945,
     "forward_transfer": {
       "1": 50.0,
-      "2": 49.85308521057786,
-      "3": 49.83991462113127,
+      "2": 49.80411361410383,
+      "3": 49.78655282817503,
       "4": 49.79859013091641,
       "5": 49.34442763489662
     },
-    "average_forward_transfer": 49.767203519504434,
+    "average_forward_transfer": 49.74673684161838,
     "backward_transfer": {
-      "1": -12.245862884160758,
-      "2": -24.09402546523016,
-      "3": -21.611526147278553,
-      "4": -17.220543806646518,
+      "1": -17.966903073286048,
+      "2": -19.392752203721855,
+      "3": -16.43543223052295,
+      "4": -15.105740181268871,
       "5": 0.0
     },
-    "average_backward_transfer": -15.034391660663198
+    "average_backward_transfer": -13.780165537759945
   }
 }

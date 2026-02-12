@@ -131,6 +131,7 @@ class BaseTrainer:
                 # Update feature embeddings periodically
                 if (self.config.update_features_freq > 0 and
                     batch_idx % self.config.update_features_freq == 0):
+                    print(f"Updating features at batch {batch_idx}")
                     self.buffer.update_features(self.model, self.device)
 
                 # Statistics

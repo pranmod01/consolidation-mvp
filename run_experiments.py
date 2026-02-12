@@ -21,7 +21,8 @@ import torch
 
 from src.models import Classifier
 from src.data import SplitMNIST, SplitCIFAR10
-from src.training import VanillaReplayTrainer, EWCTrainer, MetaSGDTrainer
+from src.training import VanillaReplayTrainer, EWCTrainer, MetaSGDTrainer, TTTTrainer, AutoencoderTrainer
+from src.models.autoencoder import AutoencoderClassifier
 from src.training.base_trainer import TrainingConfig
 from src.evaluation import (
     plot_accuracy_matrix,
@@ -71,6 +72,13 @@ def create_trainer(config: ExperimentConfig, model):
             inner_lr_init=config.meta_inner_lr,
             inner_steps=config.meta_inner_steps,
             meta_lr=config.meta_lr,
+        )
+    elif config.method == 'ttt':
+        return TTTTrainer(
+            model, training_config, config.num_classes,
+            ttt_lr=config.ttt_lr,
+            ttt_steps=config.ttt_steps,
+            rotation_weight=config.rotation_weight,
         )
     else:
         raise ValueError(f"Unknown method: {config.method}")
@@ -326,49 +334,139 @@ def run_poc(output_dir: Path) -> Dict:
     """Minimal proof-of-concept experiment.
 
     Tests the core hypothesis with minimal compute:
-    - 1 base method (vanilla_replay)
-    - 4 strategies (random, +PS, +TS, +PS+TS)
+    - 5 strategies to compare:
+      1. Baseline (no replay)
+      2. Vanilla + Random Replay
+      3. Vanilla + PS+TS Replay
+      4. TTT + Random Replay
+      5. TTT + PS+TS Replay
     - Split-MNIST only
-    - 3 tasks, 2 epochs each
+    - 5 tasks, 2 epochs each
     - Small buffer (200)
 
-    Should run in ~5 minutes on CPU.
-    Produces 4 JSON files to show consolidation helps.
+    Should run in ~10 minutes on CPU.
+    Produces comparison of accuracy and forgetting scores.
     """
     print("\n" + "="*80)
-    print("PROOF OF CONCEPT - Minimal CPU-Friendly Experiment")
+    print("PROOF OF CONCEPT - Comparing Replay Strategies")
     print("="*80)
-    print("Testing: Does consolidation improve vanilla replay on Split-MNIST?")
-    print("4 experiments: Baseline vs +PS vs +TS vs +PS+TS")
+    print("Testing 5 strategies:")
+    print("  1. Baseline (no replay)")
+    print("  2. Vanilla + Random Replay")
+    print("  3. Vanilla + PS+TS Replay")
+    print("  4. AE + Random Replay")
+    print("  5. AE + PS+TS Replay")
     print("="*80)
 
     results = {}
-    strategies = {
-        'random': 'Baseline',
-        'diversity': '+PS (Pattern Separation)',
-        'temporal': '+TS (Temporal Spacing)',
-        'combined': '+PS+TS (Combined)',
-    }
 
-    for strategy, label in strategies.items():
-        print(f"\n>>> Running: {label}")
+    # Define experiment configurations
+    experiments = [
+        {
+            'key': 'baseline',
+            'label': 'Baseline (no replay)',
+            'method': 'vanilla_replay',
+            'use_replay': False,
+            'sampling_strategy': 'random',
+        },
+        {
+            'key': 'vanilla_random',
+            'label': 'Vanilla + Random Replay',
+            'method': 'vanilla_replay',
+            'use_replay': True,
+            'sampling_strategy': 'random',
+        },
+        {
+            'key': 'vanilla_psts',
+            'label': 'Vanilla + PS+TS Replay',
+            'method': 'vanilla_replay',
+            'use_replay': True,
+            'sampling_strategy': 'combined',
+        },
+        {
+            'key': 'ae_random',
+            'label': 'AE + Random Replay',
+            'method': 'autoencoder',
+            'use_replay': True,
+            'sampling_strategy': 'random',
+        },
+        {
+            'key': 'ae_psts',
+            'label': 'AE + PS+TS Replay',
+            'method': 'autoencoder',
+            'use_replay': True,
+            'sampling_strategy': 'combined',
+        },
+    ]
+
+    for exp in experiments:
+        print(f"\n>>> Running: {exp['label']}")
 
         config = ExperimentConfig(
-            name=f"poc_{strategy}",
-            method='vanilla_replay',
+            name=f"poc_{exp['key']}",
+            method=exp['method'],
             dataset='split_mnist',
             buffer_size=200,
-            sampling_strategy=strategy,
+            sampling_strategy=exp['sampling_strategy'],
             epochs_per_task=2,
-            num_tasks=5,  # All 5 MNIST tasks
-            update_features_freq=30 if strategy in ['diversity', 'combined'] else 0,
+            num_tasks=5,
+            update_features_freq=30 if exp['sampling_strategy'] == 'combined' else 0,
         )
 
-        result = run_single_experiment(config)
-        results[label] = result
+        # Create trainer with modified replay setting
+        set_seed(config.seed)
+        model = create_model(config)
+        dataset = create_dataset(config)
+
+        training_config = TrainingConfig(
+            epochs_per_task=config.epochs_per_task,
+            lr=config.lr,
+            batch_size=config.batch_size,
+            weight_decay=config.weight_decay,
+            device=config.get_device(),
+            use_replay=exp['use_replay'],
+            replay_batch_size=config.replay_batch_size,
+            replay_freq=config.replay_freq,
+            buffer_size=config.buffer_size,
+            samples_per_task=config.samples_per_task,
+            sampling_strategy=config.sampling_strategy,
+            sampling_kwargs={
+                'temperature': config.ps_temperature,
+                'age_weight': config.ts_age_exponent,
+                'diversity_weight': config.diversity_weight,
+                'temporal_weight': config.temporal_weight,
+            },
+            update_features_freq=config.update_features_freq,
+        )
+
+        if exp['method'] == 'vanilla_replay':
+            trainer = VanillaReplayTrainer(model, training_config, config.num_classes)
+        elif exp['method'] == 'ttt':
+            trainer = TTTTrainer(
+                model, training_config, config.num_classes,
+                ttt_lr=config.ttt_lr,
+                ttt_steps=config.ttt_steps,
+                rotation_weight=config.rotation_weight,
+            )
+        elif exp['method'] == 'autoencoder':
+            # Create autoencoder model instead
+            ae_model = AutoencoderClassifier.create_for_mnist(
+                num_classes=config.num_classes,
+                latent_dim=config.feature_dim
+            )
+            trainer = AutoencoderTrainer(
+                ae_model, training_config, config.num_classes,
+                recon_weight=1.0,
+            )
+        else:
+            raise ValueError(f"Unknown method: {exp['method']}")
+
+        result = trainer.train_continual(dataset, config.num_tasks)
+        result['config'] = config.to_dict()
+        results[exp['label']] = result
 
         # Save individual result
-        result_path = output_dir / f"poc/{strategy}.json"
+        result_path = output_dir / f"poc/{exp['key']}.json"
         result_path.parent.mkdir(parents=True, exist_ok=True)
         with open(result_path, 'w') as f:
             json.dump({
@@ -377,55 +475,204 @@ def run_poc(output_dir: Path) -> Dict:
             }, f, indent=2)
 
     # Print comparison table
-    print("\n" + "="*70)
+    print("\n" + "="*80)
     print("PROOF OF CONCEPT RESULTS")
-    print("="*70)
+    print("="*80)
     print(f"{'Strategy':<30} {'Avg Accuracy':>15} {'Avg Forgetting':>15}")
-    print("-"*70)
+    print("-"*80)
 
-    baseline_acc = results['Baseline']['metrics']['average_accuracy']
-    for label, result in results.items():
+    baseline_acc = results['Baseline (no replay)']['metrics']['average_accuracy']
+    for exp in experiments:
+        label = exp['label']
+        result = results[label]
         acc = result['metrics']['average_accuracy']
         fgt = result['metrics']['average_forgetting']
         delta = acc - baseline_acc
-        delta_str = f"({delta:+.1f}%)" if label != 'Baseline' else ""
+        delta_str = f"({delta:+.1f}%)" if label != 'Baseline (no replay)' else ""
         print(f"{label:<30} {acc:>14.1f}% {fgt:>14.1f}%  {delta_str}")
 
-    print("-"*70)
+    print("-"*80)
 
-    # Key finding
-    combined_acc = results['+PS+TS (Combined)']['metrics']['average_accuracy']
-    improvement = combined_acc - baseline_acc
-    print(f"\nKEY FINDING: Combined consolidation improves accuracy by {improvement:+.1f}%")
+    # Key findings
+    vanilla_random_acc = results['Vanilla + Random Replay']['metrics']['average_accuracy']
+    vanilla_psts_acc = results['Vanilla + PS+TS Replay']['metrics']['average_accuracy']
+    ae_random_acc = results['AE + Random Replay']['metrics']['average_accuracy']
+    ae_psts_acc = results['AE + PS+TS Replay']['metrics']['average_accuracy']
 
-    if improvement > 0:
-        print("✓ Hypothesis supported: Bio-inspired consolidation helps!")
-    else:
-        print("✗ Hypothesis not supported in this minimal test")
+    print("\nKEY FINDINGS:")
+    print(f"  - Vanilla Random vs Baseline: {vanilla_random_acc - baseline_acc:+.1f}%")
+    print(f"  - Vanilla PS+TS vs Baseline:  {vanilla_psts_acc - baseline_acc:+.1f}%")
+    print(f"  - AE Random vs Baseline:      {ae_random_acc - baseline_acc:+.1f}%")
+    print(f"  - AE PS+TS vs Baseline:       {ae_psts_acc - baseline_acc:+.1f}%")
+    print(f"  - AE PS+TS vs AE Random:      {ae_psts_acc - ae_random_acc:+.1f}%")
+
+    # Best method
+    best_label = max(results.keys(), key=lambda k: results[k]['metrics']['average_accuracy'])
+    best_acc = results[best_label]['metrics']['average_accuracy']
+    print(f"\nBEST: {best_label} with {best_acc:.1f}% accuracy")
+
+    # Generate plots
+    print("\nGenerating plots...")
+    import matplotlib
+    matplotlib.use('Agg')  # Non-interactive backend
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Plot 1: Accuracy comparison bar chart
+    fig, ax = plt.subplots(figsize=(12, 6))
+    labels = [exp['label'] for exp in experiments]
+    accuracies = [results[exp['label']]['metrics']['average_accuracy'] for exp in experiments]
+    colors = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12']
+
+    bars = ax.bar(range(len(labels)), accuracies, color=colors, edgecolor='black', linewidth=1.5)
+    for bar, acc in zip(bars, accuracies):
+        ax.annotate(f'{acc:.1f}%', xy=(bar.get_x() + bar.get_width()/2, bar.get_height()),
+                    xytext=(0, 5), textcoords='offset points', ha='center', va='bottom',
+                    fontsize=11, fontweight='bold')
+
+    ax.set_xticks(range(len(labels)))
+    ax.set_xticklabels(labels, rotation=25, ha='right', fontsize=10)
+    ax.set_ylabel('Average Accuracy (%)', fontsize=12)
+    ax.set_title('POC: Average Accuracy Comparison', fontsize=14, fontweight='bold')
+    ax.set_ylim([0, max(accuracies) * 1.15])
+    ax.grid(True, axis='y', alpha=0.3)
+    ax.axhline(y=baseline_acc, color='red', linestyle='--', alpha=0.7, label=f'Baseline: {baseline_acc:.1f}%')
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(output_dir / 'poc/accuracy_comparison.png', dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # Plot 2: Forgetting comparison bar chart
+    fig, ax = plt.subplots(figsize=(12, 6))
+    forgettings = [results[exp['label']]['metrics']['average_forgetting'] for exp in experiments]
+
+    bars = ax.bar(range(len(labels)), forgettings, color=colors, edgecolor='black', linewidth=1.5)
+    for bar, fgt in zip(bars, forgettings):
+        ax.annotate(f'{fgt:.1f}%', xy=(bar.get_x() + bar.get_width()/2, bar.get_height()),
+                    xytext=(0, 5), textcoords='offset points', ha='center', va='bottom',
+                    fontsize=11, fontweight='bold')
+
+    ax.set_xticks(range(len(labels)))
+    ax.set_xticklabels(labels, rotation=25, ha='right', fontsize=10)
+    ax.set_ylabel('Average Forgetting (%)', fontsize=12)
+    ax.set_title('POC: Average Forgetting Comparison (Lower is Better)', fontsize=14, fontweight='bold')
+    ax.set_ylim([0, max(forgettings) * 1.25])
+    ax.grid(True, axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(output_dir / 'poc/forgetting_comparison.png', dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # Plot 3: Forgetting curves for each strategy
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    axes = axes.flatten()
+    num_tasks = 5
+
+    for idx, exp in enumerate(experiments):
+        ax = axes[idx]
+        label = exp['label']
+        acc_matrix = results[label]['accuracy_matrix']
+
+        task_colors = plt.cm.tab10(np.linspace(0, 1, num_tasks))
+
+        for task in range(1, num_tasks + 1):
+            accs = []
+            x_vals = []
+            for after_task in range(task, num_tasks + 1):
+                acc = acc_matrix.get(after_task, task)
+                if acc is not None:
+                    accs.append(acc)
+                    x_vals.append(after_task)
+
+            if accs:
+                ax.plot(x_vals, accs, marker='o', label=f'Task {task}',
+                        color=task_colors[task-1], linewidth=2, markersize=6)
+
+        ax.set_xlabel('After Training on Task', fontsize=10)
+        ax.set_ylabel('Accuracy (%)', fontsize=10)
+        ax.set_title(label, fontsize=11, fontweight='bold')
+        ax.set_xticks(range(1, num_tasks + 1))
+        ax.set_ylim([0, 105])
+        ax.legend(loc='lower left', fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    # Hide the 6th subplot (we have 5 experiments)
+    axes[5].axis('off')
+
+    plt.suptitle('POC: Forgetting Curves by Strategy', fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig(output_dir / 'poc/forgetting_curves.png', dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # Plot 4: Combined accuracy + forgetting
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Accuracy subplot
+    bars1 = ax1.bar(range(len(labels)), accuracies, color=colors, edgecolor='black')
+    for bar, acc in zip(bars1, accuracies):
+        ax1.annotate(f'{acc:.1f}%', xy=(bar.get_x() + bar.get_width()/2, bar.get_height()),
+                     xytext=(0, 3), textcoords='offset points', ha='center', fontsize=9)
+    ax1.set_xticks(range(len(labels)))
+    ax1.set_xticklabels([l.replace(' + ', '\n+ ').replace(' (', '\n(') for l in labels], fontsize=8)
+    ax1.set_ylabel('Average Accuracy (%)', fontsize=11)
+    ax1.set_title('Accuracy (Higher is Better)', fontsize=12, fontweight='bold')
+    ax1.set_ylim([0, max(accuracies) * 1.15])
+    ax1.grid(True, axis='y', alpha=0.3)
+
+    # Forgetting subplot
+    bars2 = ax2.bar(range(len(labels)), forgettings, color=colors, edgecolor='black')
+    for bar, fgt in zip(bars2, forgettings):
+        ax2.annotate(f'{fgt:.1f}%', xy=(bar.get_x() + bar.get_width()/2, bar.get_height()),
+                     xytext=(0, 3), textcoords='offset points', ha='center', fontsize=9)
+    ax2.set_xticks(range(len(labels)))
+    ax2.set_xticklabels([l.replace(' + ', '\n+ ').replace(' (', '\n(') for l in labels], fontsize=8)
+    ax2.set_ylabel('Average Forgetting (%)', fontsize=11)
+    ax2.set_title('Forgetting (Lower is Better)', fontsize=12, fontweight='bold')
+    ax2.set_ylim([0, max(forgettings) * 1.25])
+    ax2.grid(True, axis='y', alpha=0.3)
+
+    plt.suptitle('POC Results: Accuracy vs Forgetting', fontsize=14, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(output_dir / 'poc/accuracy_vs_forgetting.png', dpi=150, bbox_inches='tight')
+    plt.close()
+
+    print(f"  - Saved: accuracy_comparison.png")
+    print(f"  - Saved: forgetting_comparison.png")
+    print(f"  - Saved: forgetting_curves.png")
+    print(f"  - Saved: accuracy_vs_forgetting.png")
 
     # Save summary
     summary_path = output_dir / "poc/SUMMARY.md"
     with open(summary_path, 'w') as f:
         f.write("# Proof of Concept Results\n\n")
         f.write("## Hypothesis\n")
-        f.write("Bio-inspired consolidation (Pattern Separation + Temporal Spacing) ")
-        f.write("improves continual learning performance.\n\n")
+        f.write("Comparing different replay strategies and methods for continual learning:\n")
+        f.write("- Does replay help? (Baseline vs Replay methods)\n")
+        f.write("- Does PS+TS improve over random replay?\n")
+        f.write("- Does Autoencoder (reconstruction loss) help?\n")
+        f.write("- Does combining Autoencoder with PS+TS give the best results?\n\n")
         f.write("## Setup\n")
         f.write("- Dataset: Split-MNIST (5 tasks)\n")
-        f.write("- Method: Vanilla Replay\n")
         f.write("- Buffer: 200 samples\n")
         f.write("- Epochs: 2 per task\n\n")
         f.write("## Results\n\n")
         f.write("| Strategy | Avg Accuracy | Avg Forgetting | vs Baseline |\n")
         f.write("|----------|--------------|----------------|-------------|\n")
-        for label, result in results.items():
+        for exp in experiments:
+            label = exp['label']
+            result = results[label]
             acc = result['metrics']['average_accuracy']
             fgt = result['metrics']['average_forgetting']
             delta = acc - baseline_acc
-            delta_str = f"{delta:+.1f}%" if label != 'Baseline' else "-"
+            delta_str = f"{delta:+.1f}%" if label != 'Baseline (no replay)' else "-"
             f.write(f"| {label} | {acc:.1f}% | {fgt:.1f}% | {delta_str} |\n")
-        f.write(f"\n## Conclusion\n\n")
-        f.write(f"Combined PS+TS improves accuracy by **{improvement:+.1f}%** over baseline.\n")
+        f.write(f"\n## Key Findings\n\n")
+        f.write(f"- **Vanilla Random vs Baseline:** {vanilla_random_acc - baseline_acc:+.1f}%\n")
+        f.write(f"- **Vanilla PS+TS vs Baseline:** {vanilla_psts_acc - baseline_acc:+.1f}%\n")
+        f.write(f"- **AE Random vs Baseline:** {ae_random_acc - baseline_acc:+.1f}%\n")
+        f.write(f"- **AE PS+TS vs Baseline:** {ae_psts_acc - baseline_acc:+.1f}%\n")
+        f.write(f"- **AE PS+TS vs AE Random:** {ae_psts_acc - ae_random_acc:+.1f}%\n\n")
+        f.write(f"## Conclusion\n\n")
+        f.write(f"**Best Method:** {best_label} with {best_acc:.1f}% accuracy\n")
 
     print(f"\nResults saved to: {output_dir}/poc/")
     print(f"Summary: {summary_path}")

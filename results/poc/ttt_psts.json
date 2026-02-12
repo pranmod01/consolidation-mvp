@@ -1,6 +1,6 @@
 {
   "config": {
-    "name": "poc_temporal",
+    "name": "poc_ttt_psts",
     "seed": 42,
     "dataset": "split_mnist",
     "num_tasks": 5,
@@ -13,19 +13,22 @@
     "lr": 0.001,
     "weight_decay": 0.0,
     "device": "auto",
-    "method": "vanilla_replay",
+    "method": "ttt",
     "ewc_lambda": 400.0,
     "ewc_online": false,
     "ewc_gamma": 0.95,
     "meta_inner_lr": 0.01,
     "meta_inner_steps": 5,
     "meta_lr": 0.001,
+    "ttt_lr": 0.001,
+    "ttt_steps": 1,
+    "rotation_weight": 1.0,
     "buffer_size": 200,
     "samples_per_task": null,
     "replay_batch_size": 32,
     "replay_freq": 1,
-    "sampling_strategy": "temporal",
-    "update_features_freq": 0,
+    "sampling_strategy": "combined",
+    "update_features_freq": 30,
     "ps_method": "farthest_point",
     "ps_n_clusters": 10,
     "ps_temperature": 1.0,
@@ -38,31 +41,31 @@
     "save_checkpoints": false
   },
   "metrics": {
-    "average_accuracy": 84.73281185884123,
-    "learning_accuracy": 99.76720351950443,
+    "average_accuracy": 89.24168948218839,
+    "learning_accuracy": 99.88018259898874,
     "forgetting": {
-      "1": 12.245862884160758,
-      "2": 24.09402546523016,
-      "3": 21.611526147278553,
-      "4": 17.220543806646518,
+      "1": 14.60992907801419,
+      "2": 11.851126346718914,
+      "3": 16.862326574172897,
+      "4": 9.869083585095666,
       "5": 0.0
     },
-    "average_forgetting": 15.034391660663198,
+    "average_forgetting": 10.638493116800333,
     "forward_transfer": {
       "1": 50.0,
-      "2": 49.85308521057786,
-      "3": 49.83991462113127,
-      "4": 49.79859013091641,
-      "5": 49.34442763489662
+      "2": 49.80411361410383,
+      "3": 50.0,
+      "4": 49.84894259818731,
+      "5": 49.74785678265255
     },
-    "average_forward_transfer": 49.767203519504434,
+    "average_forward_transfer": 49.88018259898873,
     "backward_transfer": {
-      "1": -12.245862884160758,
-      "2": -24.09402546523016,
-      "3": -21.611526147278553,
-      "4": -17.220543806646518,
+      "1": -14.60992907801419,
+      "2": -11.851126346718914,
+      "3": -16.862326574172897,
+      "4": -9.869083585095666,
       "5": 0.0
     },
-    "average_backward_transfer": -15.034391660663198
+    "average_backward_transfer": -10.638493116800333
   }
 }

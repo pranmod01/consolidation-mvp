@@ -87,14 +87,13 @@ class ReplayBuffer:
             features: Optional (B, feature_dim) tensor of feature embeddings
         """
         batch_size = images.size(0)
-        current_timestamp = time.time()
 
         for i in range(batch_size):
             sample = BufferSample(
                 image=images[i].cpu().clone(),
                 label=labels[i].item(),
                 task_id=task_id,
-                timestamp=current_timestamp,
+                timestamp=self.current_time,  # Use logical time
                 features=features[i].cpu().clone() if features is not None else None
             )
             self._add_single_sample(sample)
@@ -246,7 +245,7 @@ class ReplayBuffer:
     def _sample_temporal(
         self,
         batch_size: int,
-        age_weight: float = 1.0,
+        age_weight: float = 2.0,
         prioritize_old: bool = True,
         **kwargs
     ) -> List[int]:
@@ -255,8 +254,8 @@ class ReplayBuffer:
         Older samples have higher probability of being selected,
         implementing spaced repetition principle.
         """
-        current_time = time.time()
-        ages = np.array([current_time - s.timestamp for s in self.samples])
+        # Use logical time for consistent temporal spacing
+        ages = np.array([self.current_time - s.timestamp for s in self.samples])
 
         if prioritize_old:
             # Older samples get higher weight
@@ -301,31 +300,51 @@ class ReplayBuffer:
     def _sample_combined(
         self,
         batch_size: int,
-        diversity_weight: float = 0.5,
-        temporal_weight: float = 0.5,
+        oversample_factor: float = 4.0,
         **kwargs
     ) -> List[int]:
-        """Combined diversity + temporal sampling (Pattern Separation + Temporal Spacing).
+        """Two-stage sequential refinement: Temporal Spacing → Pattern Separation.
 
-        Combines feature-space diversity with age-based weighting.
+        Stage 1: Oversample OLD samples using temporal weighting
+        Stage 2: Select DIVERSE subset from candidates using farthest-point sampling
+
+        This guarantees both properties: samples are old AND diverse.
         """
-        # Split batch between strategies
-        diversity_size = int(batch_size * diversity_weight)
-        temporal_size = batch_size - diversity_size
+        candidate_size = min(int(batch_size * oversample_factor), len(self.samples))
+        candidate_indices = self._sample_temporal(candidate_size, **kwargs)
 
-        diversity_indices = self._sample_diversity(max(1, diversity_size), **kwargs)
-        temporal_indices = self._sample_temporal(max(1, temporal_size), **kwargs)
+        if len(candidate_indices) <= batch_size or self.feature_matrix is None:
+            return candidate_indices[:batch_size]
 
-        # Combine and deduplicate
-        combined = list(set(diversity_indices + temporal_indices))
+        # Diversity sampling on candidates only
+        candidate_features = self.feature_matrix[candidate_indices]
+        selected_relative = self._greedy_fps(candidate_features, batch_size)
 
-        # Fill if needed
-        while len(combined) < batch_size:
-            idx = np.random.choice(len(self.samples))
-            if idx not in combined:
-                combined.append(idx)
+        return [candidate_indices[i] for i in selected_relative]
 
-        return combined[:batch_size]
+    def _greedy_fps(self, features: torch.Tensor, n_select: int) -> List[int]:
+        """Greedy farthest-point sampling on given features.
+
+        Args:
+            features: (N, D) tensor of feature vectors
+            n_select: Number of points to select
+
+        Returns:
+            List of indices into features tensor
+        """
+        n_samples = len(features)
+        n_select = min(n_select, n_samples)
+
+        selected = [np.random.randint(n_samples)]
+
+        for _ in range(n_select - 1):
+            selected_features = features[selected]
+            dists = torch.cdist(features, selected_features)
+            min_dists = dists.min(dim=1)[0]
+            min_dists[selected] = -float('inf')
+            selected.append(min_dists.argmax().item())
+
+        return selected
 
     def _gather_samples(self, indices: List[int]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Gather samples by indices into batched tensors."""

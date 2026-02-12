@@ -45,6 +45,11 @@ class ExperimentConfig:
     meta_inner_steps: int = 5
     meta_lr: float = 0.001
 
+    # TTT-specific
+    ttt_lr: float = 0.001  # Learning rate for test-time adaptation
+    ttt_steps: int = 1  # Number of adaptation steps at test time
+    rotation_weight: float = 1.0  # Weight for rotation loss during training
+
     # Replay buffer
     buffer_size: int = 500
     samples_per_task: Optional[int] = None
